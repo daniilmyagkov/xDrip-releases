@@ -1,0 +1,26 @@
+# Publishes an xDrip Redesign update. rd-release.py (in the private code repo) pushes a branch
+# incoming/vYYYY.MM.DD-HH holding both APKs, title.txt and notes.md; this turns it into the
+# release the phones look for, then removes the branch so the repo itself stays small.
+name: Publish update
+on:
+  push:
+    branches: ['incoming/**']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          TAG="${BRANCH#incoming/}"
+          [[ "$TAG" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}-[0-9]{2}$ ]] || { echo "bad tag $TAG"; exit 1; }
+          ls incoming/xDrip-Redesign-*.apk incoming/xDrip-Master-*.apk
+          gh release create "$TAG" incoming/*.apk --target main --latest \
+            --title "$(cat incoming/title.txt)" --notes-file incoming/notes.md
+      - name: Remove the upload branch
+        run: git push origin --delete "${{ github.ref_name }}"
